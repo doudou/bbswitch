@@ -300,8 +300,8 @@ static void bbswitch_off(void) {
     do {
         acpi_get_power_state(dis_handle);
     } while (0);
-    if (pci_set_power_state(dis_dev, PCI_D3cold) != 0)
-        pr_warn("The discrete card could not be put in D3cold state");
+    if (pci_set_power_state(dis_dev, PCI_D3hot) != 0)
+        pr_warn("The discrete card could not be put in D3hot state");
 
     if (bbswitch_acpi_off())
         pr_warn("The discrete card could not be disabled by a _DSM call\n");
