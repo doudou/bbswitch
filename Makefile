@@ -1,13 +1,16 @@
-modname := bbswitch
-obj-m := $(modname).o
-
-KVERSION := $(shell uname -r)
-KDIR := /lib/modules/$(KVERSION)/build
-PWD := "$$(pwd)"
+modname := bbswitch_nv
+ifneq ($(KERNELRELEASE),)
+obj-m := bbswitch_nv.o
 
 ifdef DEBUG
 CFLAGS_$(obj-m) := -DDEBUG
 endif
+
+else
+
+KVERSION := $(shell uname -r)
+KDIR := /lib/modules/$(KVERSION)/build
+PWD := "$$(pwd)"
 
 default:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
@@ -29,3 +32,4 @@ uninstall:
 	rmdir /lib/modules/$(KVERSION)/misc/$(modname)
 	rmdir /lib/modules/$(KVERSION)/misc
 	depmod -a
+endif
