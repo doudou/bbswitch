@@ -1,12 +1,8 @@
-modname := bbswitch_nv
-ifneq ($(KERNELRELEASE),)
-obj-m := bbswitch_nv.o
+obj-m := bbswitch_nv.o bbswitch.o
 
 ifdef DEBUG
 CFLAGS_$(obj-m) := -DDEBUG
 endif
-
-else
 
 KVERSION := $(shell uname -r)
 KDIR := /lib/modules/$(KVERSION)/build
@@ -17,19 +13,3 @@ default:
 
 clean:
 	$(MAKE) O=$(PWD) -C $(KDIR) M=$(PWD) clean
-
-load:
-	-rmmod $(modname)
-	insmod $(modname).ko
-
-install:
-	mkdir -p /lib/modules/$(KVERSION)/misc/$(modname)
-	install -m 0755 -o root -g root $(modname).ko /lib/modules/$(KVERSION)/misc/$(modname)
-	depmod -a
-
-uninstall:
-	rm /lib/modules/$(KVERSION)/misc/$(modname)/$(modname).ko
-	rmdir /lib/modules/$(KVERSION)/misc/$(modname)
-	rmdir /lib/modules/$(KVERSION)/misc
-	depmod -a
-endif

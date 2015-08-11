@@ -18,11 +18,7 @@ module_param(pcie_root_fun, int, 0400);
 static int
 bbswitch_suspend(struct device* dev)
 {
-    struct pci_dev* pdev = to_pci_dev(dev);
     pr_info("%s: attempting to suspend", dev->driver->name);
-    pci_save_state(pdev);
-    pci_disable_device(pdev);
-    pci_set_power_state(pdev, PCI_D3hot);
     return 0;
 }
 
@@ -41,11 +37,7 @@ bbswitch_pcie_suspend(struct device* dev)
 static int
 bbswitch_resume(struct device* dev)
 {
-    struct pci_dev* pdev = to_pci_dev(dev);
     pr_info("%s: attempting to resume", dev->driver->name);
-    pci_set_power_state(pdev, PCI_D0);
-    pci_restore_state(pdev);
-    pci_enable_device(pdev);
     return 0;
 }
 
@@ -85,6 +77,7 @@ static int bbswitch_nv_probe(struct pci_dev *pdev, const struct pci_device_id *p
     pm_runtime_put_noidle(&pdev->dev);
     pm_runtime_allow(&pdev->dev);
     pm_runtime_use_autosuspend(&pdev->dev);
+    pm_runtime_mark_last_busy(&pdev->dev);
     pm_request_idle(&pdev->dev);
     return 0;
 }
@@ -104,6 +97,7 @@ static int bbswitch_pcie_probe(struct pci_dev *pdev, const struct pci_device_id 
     pm_runtime_put_noidle(&pdev->dev);
     pm_runtime_allow(&pdev->dev);
     pm_runtime_use_autosuspend(&pdev->dev);
+    pm_runtime_mark_last_busy(&pdev->dev);
     pm_request_idle(&pdev->dev);
     return 0;
 }
