@@ -1,0 +1,12 @@
+probe kprobe.function("pci_set_power_state") {
+    printf("pci_set_power_state(%i)\n", int_arg(2))
+}
+probe kprobe.function("pci_set_power_state").return {
+    printf(" -> %i\n", returnval())
+}
+probe kprobe.function("pci_raw_set_power_state") {
+    printf("pci_raw_set_power_state(%i)\n", int_arg(2))
+}
+probe kprobe.function("pci_raw_set_power_state").return {
+    printf(" -> %i\n", returnval())
+}
