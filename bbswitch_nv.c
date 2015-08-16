@@ -25,6 +25,7 @@ bbswitch_suspend(struct device* dev)
 static int
 bbswitch_nv_suspend(struct device* dev)
 {
+    pci_clear_master(to_pci_dev(dev));
     return bbswitch_suspend(dev);
 }
 
@@ -39,6 +40,13 @@ bbswitch_resume(struct device* dev)
 {
     pr_info("%s: attempting to resume", dev->driver->name);
     return 0;
+}
+
+// If the PCIe root went to D3, the NV card is in uninitialized state
+static void
+bbswitch_nv_resume_early_fixup(struct pci_dev* pdev)
+{
+    pci_clear_master(pdev);
 }
 
 static int
@@ -123,6 +131,11 @@ bbswitch_nv_pci_table[] = {
 	},
 	{}
 };
+
+DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume_early,
+        resume_early_bbswitch_nv,
+        PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY, 16,
+        bbswitch_nv_resume_early_fixup);
 
 static struct pci_driver nv_driver = {
     .name = "bbswitch_nv",
