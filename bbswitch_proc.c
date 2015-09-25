@@ -39,9 +39,9 @@ static ssize_t bbswitch_proc_write(struct file *fp, const char __user *buff,
     if (copy_from_user(cmd, buff, len))
         return -EFAULT;
 
-    if (strncmp(cmd, "OFF", 3) == 0)
+    if (strncmp(cmd, "OFF", 3) == 0 && !bbswitch_nv_is_registered())
         bbswitch_nv_register();
-    else if (strncmp(cmd, "ON", 2) == 0)
+    else if (strncmp(cmd, "ON", 2) == 0 && bbswitch_nv_is_registered())
         bbswitch_nv_unregister();
 
     return len;
