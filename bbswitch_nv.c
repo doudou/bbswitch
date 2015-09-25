@@ -6,108 +6,42 @@
 #include <linux/seq_file.h>
 #include <linux/pm_runtime.h>
 
-//#include "bbswitch_dsm.c"
-
-static int pcie_root_slot = 0;
-MODULE_PARM_DESC(pcie_root_slot, "Slot number of the PCIe root port on which the card is attached");
-module_param(pcie_root_slot, int, 0400);
-static int pcie_root_fun = 0;
-MODULE_PARM_DESC(pcie_root_fun, "Function number of the PCIe root port on which the card is attached");
-module_param(pcie_root_fun, int, 0400);
+static const char* nv_name;
 
 static int
-bbswitch_suspend(struct device* dev)
+bbswitch_nv_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
 {
-    pr_info("%s: attempting to suspend", dev->driver->name);
+    pr_info("bbswitch_nv: got NVidia device %s\n", dev_name(&pdev->dev));
+    nv_name = dev_name(&pdev->dev);
+    pci_enable_device(pdev);
+    pm_runtime_use_autosuspend(&pdev->dev);
+    pm_runtime_set_autosuspend_delay(&pdev->dev, 5000);
+    pm_runtime_set_active(&pdev->dev);
+    pm_runtime_allow(&pdev->dev);
+    pm_runtime_mark_last_busy(&pdev->dev);
+    pm_runtime_put(&pdev->dev);
     return 0;
 }
 
 static int
 bbswitch_nv_suspend(struct device* dev)
 {
-    pci_clear_master(to_pci_dev(dev));
-    return bbswitch_suspend(dev);
-}
-
-static int
-bbswitch_pcie_suspend(struct device* dev)
-{
-    return bbswitch_suspend(dev);
-}
-
-static int
-bbswitch_resume(struct device* dev)
-{
-    pr_info("%s: attempting to resume", dev->driver->name);
+    pr_info("%s: suspending", dev->driver->name);
     return 0;
-}
-
-// If the PCIe root went to D3, the NV card is in uninitialized state
-static void
-bbswitch_nv_resume_early_fixup(struct pci_dev* pdev)
-{
-    pci_clear_master(pdev);
 }
 
 static int
 bbswitch_nv_resume(struct device* dev)
 {
-    return bbswitch_resume(dev);
-}
-
-static int
-bbswitch_pcie_resume(struct device* dev)
-{
-    return bbswitch_resume(dev);
-}
-
-static void bbswitch_remove(struct pci_dev *pdev)
-{
-    pm_runtime_forbid(&pdev->dev);
-    pm_runtime_get_noresume(&pdev->dev);
-    pci_disable_device(pdev);
+    pr_info("%s: resuming", dev->driver->name);
+    return 0;
 }
 
 static void bbswitch_nv_remove(struct pci_dev *pdev)
 {
-    return bbswitch_remove(pdev);
-}
-
-static void bbswitch_pcie_remove(struct pci_dev *pdev)
-{
-    return bbswitch_remove(pdev);
-}
-
-static int bbswitch_nv_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
-{
-    pr_info("bbswitch_nv: got NVidia device %s\n", dev_name(&pdev->dev));
-    pci_enable_device(pdev);
-    pm_runtime_put_noidle(&pdev->dev);
-    pm_runtime_allow(&pdev->dev);
-    pm_runtime_use_autosuspend(&pdev->dev);
-    pm_runtime_mark_last_busy(&pdev->dev);
-    pm_request_idle(&pdev->dev);
-    return 0;
-}
-
-static int bbswitch_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
-{
-    pr_info("bbswitch_pcie: got PCIe root port %s\n", dev_name(&pdev->dev));
-    if (PCI_SLOT(pdev->devfn) != pcie_root_slot || PCI_FUNC(pdev->devfn) != pcie_root_fun)
-    {
-        pr_info("bbswitch_pcie: %i.%i not matching expected dev.fn %i.%i\n",
-                PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-                pcie_root_slot, pcie_root_fun);
-        return -1;
-    }
-
-    pci_enable_device(pdev);
-    pm_runtime_put_noidle(&pdev->dev);
-    pm_runtime_allow(&pdev->dev);
-    pm_runtime_use_autosuspend(&pdev->dev);
-    pm_runtime_mark_last_busy(&pdev->dev);
-    pm_request_idle(&pdev->dev);
-    return 0;
+    pm_runtime_forbid(&pdev->dev);
+    pm_runtime_get_noresume(&pdev->dev);
+    pci_disable_device(pdev);
 }
 
 static const struct dev_pm_ops bbswitch_nv_pm_ops = {
@@ -132,11 +66,6 @@ bbswitch_nv_pci_table[] = {
 	{}
 };
 
-DECLARE_PCI_FIXUP_SECTION(.pci_fixup_resume_early,
-        resume_early_bbswitch_nv,
-        PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY, 16,
-        bbswitch_nv_resume_early_fixup);
-
 static struct pci_driver nv_driver = {
     .name = "bbswitch_nv",
     .id_table  = bbswitch_nv_pci_table,
@@ -145,48 +74,26 @@ static struct pci_driver nv_driver = {
     .driver.pm = &bbswitch_nv_pm_ops
 };
 
-static const struct dev_pm_ops bbswitch_pcie_pm_ops = {
-    .suspend   = bbswitch_pcie_suspend,
-    .resume    = bbswitch_pcie_resume,
-    .runtime_suspend = bbswitch_pcie_suspend,
-    .runtime_resume  = bbswitch_pcie_resume
-};
-
-static struct pci_device_id
-bbswitch_pcie_pci_table[] = {
-	{
-            PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0)
-	},
-	{}
-};
-
-static struct pci_driver pcie_driver = {
-    .name = "bbswitch_pcie",
-    .id_table  = bbswitch_pcie_pci_table,
-    .probe     = bbswitch_pcie_probe,
-    .remove    = bbswitch_pcie_remove,
-    .driver.pm = &bbswitch_pcie_pm_ops
-};
-
-static int __init bbswitch_nv_init(void)
+static bool is_registered = false;
+extern bool bbswitch_nv_is_registered(void)
 {
-    pci_register_driver(&pcie_driver);
+    return is_registered;
+}
+
+extern void bbswitch_nv_register(void)
+{
+    is_registered = true;
     pci_register_driver(&nv_driver);
-    return 0;
 }
 
-static void __exit
-bbswitch_nv_exit(void)
+extern void bbswitch_nv_unregister(void)
 {
+    is_registered = false;
     pci_unregister_driver(&nv_driver);
-    pci_unregister_driver(&pcie_driver);
 }
 
-module_init(bbswitch_nv_init);
-module_exit(bbswitch_nv_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Minimal power management for an NV card");
-MODULE_AUTHOR("Sylvain Joyeux <sylvain.joyeux@m4x.org>");
-MODULE_VERSION("0.1");
+extern char const* bbswitch_nv_name(void)
+{
+    return nv_name;
+}
 

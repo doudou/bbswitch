@@ -1,4 +1,6 @@
-obj-m := bbswitch_nv.o bbswitch.o
+bbswitch-objs := bbswitch_proc.o bbswitch_nv.o
+
+obj-m += bbswitch.o
 
 ifdef DEBUG
 CFLAGS_$(obj-m) := -DDEBUG
